@@ -1,0 +1,13 @@
+global using CM.Domain.Checkables;
+global using CM.Domain.Checkables.Commands;
+global using CM.Domain.Checkables.Events;
+global using CM.Domain.Checkables.Queries;
+global using CM.Domain.CheckLists;
+global using CM.Domain.CheckLists.Commands;
+global using CM.Domain.CheckLists.Events;
+global using CM.Domain.CheckLists.Queries;
+global using CM.Domain.Cqrs;
+global using CM.Domain.Users;
+global using CM.Domain.Users.Commands;
+global using CM.Domain.Users.Events;
+global using CM.Domain.Users.Queries;
