@@ -7,6 +7,7 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 | Project | Type | Purpose |
 |---|---|---|
 | `CM.Domain` | Class library, `net10.0` | All domain entities, CQRS interfaces, commands, events, queries, and result types |
+| `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
 
 Project names follow the `CM.*` prefix convention. No `src/` folder — projects sit at the repo root.
 
@@ -102,6 +103,22 @@ CM.Domain/
 
 ---
 
+## CM.LiteDB Structure
+
+```
+CM.LiteDB/
+  _GlobalUsings.cs
+```
+
+Handlers are added under mirrored sub-folders as they are implemented (e.g. `Checkables/Queries/`, `CheckLists/Commands/`).
+
+### Handler Naming
+- Named `XxxHandler` — e.g. `GetCheckablesByCheckListHandler`
+- Sealed classes implementing `IQueryHandler<TQuery, TResult>` or `ICommandHandler<TCommand>`
+- Injected dependencies (e.g. `ILiteDatabase`) are private fields, assigned in the constructor
+
+---
+
 ## Domain Entities
 
 ### `User` (sealed)
@@ -149,8 +166,8 @@ CM.Domain/
 
 ### Queries
 - Positional records implementing `IQuery<TResult>`
-- Single-item queries return `IQuery<TDto?>` (nullable) — caller handles not-found
-- Collection queries return `IQuery<IReadOnlyList<TDto>>`
+- Single-item queries implement `IQuery<TDto?>` (nullable) — caller handles not-found
+- Collection queries implement `IQuery<IReadOnlyList<TDto>>`
 - `IQueryHandler.HandleAsync` wraps the result: returns `Task<Result<TResult>>`
 
 ### DTOs (Query Results)
@@ -161,6 +178,7 @@ CM.Domain/
 ### Result<T>
 - Discriminated union: `T` (success) or `FailResult` (failure)
 - Use implicit operators to construct: `return new FailResult("msg")` or `return someValue`
+- When the implicit operator cannot apply (e.g. `T` is an interface), use the static factory methods: `Result<T>.Success(value)` or `Result<T>.Fail(error)`
 - Access via `result.IsSuccess`, `result.Value`, `result.IsError`, `result.Error`
 
 ---

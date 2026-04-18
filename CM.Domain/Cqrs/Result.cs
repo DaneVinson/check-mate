@@ -59,4 +59,22 @@ public sealed class Result<T>
     /// </summary>
     /// <param name="value">The success value.</param>
     public static implicit operator Result<T>(T value) => new(value);
+
+    /// <summary>
+    /// Creates a failed <see cref="Result{T}"/> wrapping the specified <see cref="FailResult"/>.
+    /// Use this factory method when the implicit conversion operator cannot be applied,
+    /// such as when <typeparamref name="T"/> is an interface type.
+    /// </summary>
+    /// <param name="error">The failure result.</param>
+    /// <returns>A failed <see cref="Result{T}"/>.</returns>
+    public static Result<T> Fail(FailResult error) => new(error);
+
+    /// <summary>
+    /// Creates a successful <see cref="Result{T}"/> wrapping the specified value.
+    /// Use this factory method when the implicit conversion operator cannot be applied,
+    /// such as when <typeparamref name="T"/> is an interface type.
+    /// </summary>
+    /// <param name="value">The success value.</param>
+    /// <returns>A successful <see cref="Result{T}"/>.</returns>
+    public static Result<T> Success(T value) => new(value);
 }
