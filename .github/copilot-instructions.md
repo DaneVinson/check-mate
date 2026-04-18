@@ -53,8 +53,8 @@ CM.Domain/
     ICommand.cs          — interface; Guid Id { get; }
     ICommandHandler.cs   — interface; Task HandleAsync(TCommand, CancellationToken)
     IEvent.cs            — interface; Guid? CommandId { get; }
-    IQuery.cs            — interface; pure marker, no properties
-    IQueryHandler.cs     — interface; Task<TResult> HandleAsync(TQuery, CancellationToken)
+    IQuery.cs            — interface; pure marker generic interface IQuery<TResult>, no properties
+    IQueryHandler.cs     — interface; Task<Result<TResult>> HandleAsync(TQuery, CancellationToken)
     Result.cs            — sealed class; generic discriminated union of T | ErrorResult
   Checkables/
     Checkable.cs         — sealed entity class
@@ -149,8 +149,9 @@ CM.Domain/
 
 ### Queries
 - Positional records implementing `IQuery<TResult>`
-- Single-item queries return `TResult?` (nullable) — caller handles not-found
-- Collection queries return `IReadOnlyList<TDto>`
+- Single-item queries return `IQuery<TDto?>` (nullable) — caller handles not-found
+- Collection queries return `IQuery<IReadOnlyList<TDto>>`
+- `IQueryHandler.HandleAsync` wraps the result: returns `Task<Result<TResult>>`
 
 ### DTOs (Query Results)
 - Named `XxxDto`, live in `Xxx/Queries/` folder
