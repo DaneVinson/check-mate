@@ -3,13 +3,13 @@ namespace CM.Domain.Cqrs;
 /// <summary>
 /// Represents an error that occurred during an operation.
 /// </summary>
-public sealed class ErrorResult
+public sealed class FailResult
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ErrorResult"/> class.
+    /// Initializes a new instance of the <see cref="FailResult"/> class.
     /// </summary>
     /// <param name="message">The message describing the error.</param>
-    public ErrorResult(string message)
+    public FailResult(string message)
     {
         Message = message;
     }

@@ -49,13 +49,13 @@ Project names follow the `CM.*` prefix convention. No `src/` folder — projects
 CM.Domain/
   _GlobalUsings.cs
   Cqrs/
-    ErrorResult.cs       — sealed class; failure carrier with Message property
+    FailResult.cs        — sealed class; failure carrier with Message property
     ICommand.cs          — interface; Guid Id { get; }
     ICommandHandler.cs   — interface; Task HandleAsync(TCommand, CancellationToken)
     IEvent.cs            — interface; Guid? CommandId { get; }
     IQuery.cs            — interface; pure marker generic interface IQuery<TResult>, no properties
     IQueryHandler.cs     — interface; Task<Result<TResult>> HandleAsync(TQuery, CancellationToken)
-    Result.cs            — sealed class; generic discriminated union of T | ErrorResult
+    Result.cs            — sealed class; generic discriminated union of T | FailResult
   Checkables/
     Checkable.cs         — sealed entity class
     Commands/
@@ -159,8 +159,8 @@ CM.Domain/
 - Mirror the entity shape
 
 ### Result<T>
-- Discriminated union: `T` (success) or `ErrorResult` (failure)
-- Use implicit operators to construct: `return new ErrorResult("msg")` or `return someValue`
+- Discriminated union: `T` (success) or `FailResult` (failure)
+- Use implicit operators to construct: `return new FailResult("msg")` or `return someValue`
 - Access via `result.IsSuccess`, `result.Value`, `result.IsError`, `result.Error`
 
 ---
