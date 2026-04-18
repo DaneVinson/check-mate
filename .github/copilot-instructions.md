@@ -8,6 +8,7 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 |---|---|---|
 | `CM.Domain` | Class library, `net10.0` | All domain entities, CQRS interfaces, commands, events, queries, and result types |
 | `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
+| `CM.Bogus` | Class library, `net10.0` | Deterministic Bogus-generated seed data for development and testing |
 
 Project names follow the `CM.*` prefix convention. No `src/` folder — projects sit at the repo root.
 
@@ -100,6 +101,23 @@ CM.Domain/
       GetUser.cs
       UserDto.cs
 ```
+
+---
+
+## CM.Bogus Structure
+
+```
+CM.Bogus/
+  _GlobalUsings.cs
+  DataSeed.cs          — static class; deterministic seed data via Bogus
+```
+
+### DataSeed
+- `static class DataSeed` — all data generated once in the static constructor using seed `20250417`
+- Three public static methods: `GetUsers()`, `GetCheckLists()`, `GetCheckables()` — each returns `IReadOnlyList<T>`
+- Seeded user: Bilbo Baggins (`bilbo.baggins@shire.me`), fixed `Id` of `00000000-0000-0000-0000-000000000001`
+- Generates 10 `CheckList` instances, each with 3–20 `Checkable` items
+- `Checkable.CheckListId` is always correctly set to its parent `CheckList.Id`
 
 ---
 
