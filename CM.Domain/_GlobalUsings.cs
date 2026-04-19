@@ -11,3 +11,4 @@ global using CM.Domain.Users;
 global using CM.Domain.Users.Commands;
 global using CM.Domain.Users.Events;
 global using CM.Domain.Users.Queries;
+global using Microsoft.Extensions.DependencyInjection;

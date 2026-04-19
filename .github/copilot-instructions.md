@@ -50,22 +50,32 @@ Project names follow the `CM.*` prefix convention. No `src/` folder — projects
 ```
 CM.Domain/
   _GlobalUsings.cs
+  Extensions.cs        — static class; AddDefaultHandlers() extension on IServiceCollection
   Cqrs/
-    FailResult.cs        — sealed class; failure carrier with Message property
-    ICommand.cs          — interface; Guid Id { get; }
-    ICommandHandler.cs   — interface; Task HandleAsync(TCommand, CancellationToken)
-    IEvent.cs            — interface; Guid? CommandId { get; }
-    IQuery.cs            — interface; pure marker generic interface IQuery<TResult>, no properties
-    IQueryHandler.cs     — interface; Task<Result<TResult>> HandleAsync(TQuery, CancellationToken)
-    Result.cs            — sealed class; generic discriminated union of T | FailResult
+    CommandFailed.cs   — record; IEvent raised when a command fails; (Guid? CommandId, string Message)
+    FailResult.cs      — sealed class; failure carrier with Message property
+    ICommand.cs        — interface; Guid Id { get; }
+    ICommandHandler.cs — interface; Task HandleAsync(TCommand, CancellationToken)
+    IEvent.cs          — interface; Guid? CommandId { get; }
+    IMessenger.cs      — interface; Task SendAsync(TMessage, CancellationToken)
+    IQuery.cs          — interface; pure marker generic interface IQuery<TResult>, no properties
+    IQueryHandler.cs   — interface; Task<Result<TResult>> HandleAsync(TQuery, CancellationToken)
+    IValidatable.cs    — interface; FailResult? Validate()
+    Result.cs          — sealed class; generic discriminated union of T | FailResult
   Checkables/
-    Checkable.cs         — sealed entity class
+    Checkable.cs             — sealed entity class
+    ICheckableDataService.cs — interface; DeleteAsync, GetByCheckListAsync, GetByIdAsync, UpsertAsync
     Commands/
       CheckCheckable.cs
-      CreateCheckable.cs
+      CheckCheckableHandler.cs
+      CreateCheckable.cs       — implements IValidatable
+      CreateCheckableHandler.cs
       DeleteCheckable.cs
+      DeleteCheckableHandler.cs
       UncheckCheckable.cs
-      UpdateCheckable.cs
+      UncheckCheckableHandler.cs
+      UpdateCheckable.cs       — implements IValidatable
+      UpdateCheckableHandler.cs
     Events/
       CheckableChecked.cs
       CheckableCreated.cs
@@ -73,33 +83,44 @@ CM.Domain/
       CheckableUnchecked.cs
       CheckableUpdated.cs
     Queries/
-      CheckableDto.cs
+      CheckableDto.cs                    — has secondary ctor: CheckableDto(Checkable)
       GetCheckablesByCheckList.cs
+      GetCheckablesByCheckListHandler.cs
   CheckLists/
-    CheckList.cs         — sealed entity class
+    CheckList.cs             — sealed entity class
+    ICheckListDataService.cs — interface; DeleteAsync, GetByIdAsync, GetByUserAsync, UpsertAsync
     Commands/
-      CreateCheckList.cs
+      CreateCheckList.cs       — implements IValidatable
+      CreateCheckListHandler.cs
       DeleteCheckList.cs
-      UpdateCheckList.cs
+      DeleteCheckListHandler.cs
+      UpdateCheckList.cs       — implements IValidatable
+      UpdateCheckListHandler.cs
     Events/
       CheckListCreated.cs
       CheckListDeleted.cs
       CheckListUpdated.cs
     Queries/
-      CheckListDto.cs
+      CheckListDto.cs              — has secondary ctor: CheckListDto(CheckList)
       GetCheckList.cs
+      GetCheckListHandler.cs
       GetCheckListsByUser.cs
+      GetCheckListsByUserHandler.cs
   Users/
-    User.cs              — sealed entity class
+    User.cs             — sealed entity class
+    IUserDataService.cs — interface; GetByIdAsync, UpsertAsync
     Commands/
-      CreateUser.cs
-      UpdateUser.cs
+      CreateUser.cs       — implements IValidatable
+      CreateUserHandler.cs
+      UpdateUser.cs       — implements IValidatable
+      UpdateUserHandler.cs
     Events/
       UserCreated.cs
       UserUpdated.cs
     Queries/
       GetUser.cs
-      UserDto.cs
+      GetUserHandler.cs
+      UserDto.cs          — has secondary ctor: UserDto(User)
 ```
 
 ---
@@ -128,12 +149,12 @@ CM.LiteDB/
   _GlobalUsings.cs
 ```
 
-Handlers are added under mirrored sub-folders as they are implemented (e.g. `Checkables/Queries/`, `CheckLists/Commands/`).
+LiteDB implementations of `IXxxDataService` interfaces are added under mirrored sub-folders as they are implemented (e.g. `Checkables/`, `CheckLists/`, `Users/`).
 
-### Handler Naming
-- Named `XxxHandler` — e.g. `GetCheckablesByCheckListHandler`
-- Sealed classes implementing `IQueryHandler<TQuery, TResult>` or `ICommandHandler<TCommand>`
-- Injected dependencies (e.g. `ILiteDatabase`) are private fields, assigned in the constructor
+### Implementation Naming
+- Named `XxxDataService` — e.g. `CheckableDataService`
+- Sealed classes implementing the corresponding `IXxxDataService` interface from `CM.Domain`
+- Injected dependencies (e.g. `ILiteDatabase`) are private fields, assigned in the constructor, null-guarded
 
 ---
 
@@ -174,6 +195,8 @@ Handlers are added under mirrored sub-folders as they are implemented (e.g. `Che
 - Positional records implementing `ICommand`
 - All have `public Guid Id { get; init; } = Guid.CreateVersion7();` as an explicit body property (not in the positional params) — auto-generated, overridable for deserialization rehydration
 - All other properties in positional params, alphabetically ordered
+- Commands with string properties implement `IValidatable` and define `Validate()` inline on the record
+- `Validate()` returns `null` when valid, or a `FailResult` describing the first failure
 
 ### Events
 - Named as past tense of the command: `CheckableCreated` for `CreateCheckable`
@@ -192,12 +215,50 @@ Handlers are added under mirrored sub-folders as they are implemented (e.g. `Che
 - Named `XxxDto`, live in `Xxx/Queries/` folder
 - Positional records, params alphabetically ordered
 - Mirror the entity shape
+- All have a secondary constructor `XxxDto(XxxEntity entity)` that chains to the primary via `this(...)`
 
 ### Result<T>
 - Discriminated union: `T` (success) or `FailResult` (failure)
 - Use implicit operators to construct: `return new FailResult("msg")` or `return someValue`
 - When the implicit operator cannot apply (e.g. `T` is an interface), use the static factory methods: `Result<T>.Success(value)` or `Result<T>.Fail(error)`
 - Access via `result.IsSuccess`, `result.Value`, `result.IsError`, `result.Error`
+
+### Command Handlers
+- Named `XxxHandler`, sealed classes in the same folder as the command
+- Implement `ICommandHandler<TCommand>`
+- Constructor dependencies (alphabetically ordered): `IXxxDataService`, `IMessenger<IEvent>` — both null-guarded
+- `HandleAsync` pattern:
+  1. Call `command.Validate()` if the command implements `IValidatable` — send `CommandFailed` and return if non-null
+  2. Call data service method(s)
+  3. On error: send `CommandFailed(command.Id, result.Error.Message)` and return
+  4. On success: send the appropriate domain event
+- Never define intermediate variables just to shorten code — use `result.Value` inline
+- Always wrap `if` bodies in curly braces even for single statements
+
+### Query Handlers
+- Named `XxxHandler`, sealed classes in the same folder as the query
+- Implement `IQueryHandler<TQuery, TResult>`
+- Constructor dependency: `IXxxDataService` — null-guarded
+- Return `result.Error` on failure (implicit operator applies)
+- For collection results where `T` is an interface, use `Result<T>.Success(...)` — map entities to DTOs using the entity constructor
+
+### Data Service Interfaces
+- Named `IXxxDataService`, live in `CM.Domain/Xxx/` alongside the entity
+- Define the persistence contract for a single entity type
+- `ICheckableDataService`: `DeleteAsync(Guid)`, `GetByCheckListAsync(Guid)`, `GetByIdAsync(Guid)`, `UpsertAsync(Checkable)`
+- `ICheckListDataService`: `DeleteAsync(Guid)`, `GetByIdAsync(Guid)`, `GetByUserAsync(Guid)`, `UpsertAsync(CheckList)`
+- `IUserDataService`: `GetByIdAsync(Guid)`, `UpsertAsync(User)`
+- All methods return `Task<Result<T>>`
+
+### Messaging
+- `IMessenger<TMessage>` — single method: `Task SendAsync(TMessage, CancellationToken)`
+- Handlers depend on `IMessenger<IEvent>` to publish domain events
+- `CommandFailed(Guid? CommandId, string Message)` — cross-cutting event sent by any handler on failure or validation error
+
+### DI Registration
+- `Extensions.cs` — static class in `CM.Domain` root namespace
+- `AddDefaultHandlers(this IServiceCollection)` registers all command and query handlers as scoped
+- Requires `Microsoft.Extensions.DependencyInjection.Abstractions` package
 
 ---
 
