@@ -6,6 +6,7 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 ### Projects
 | Project | Type | Purpose |
 |---|---|---|
+| `CM.AdminConsole` | Console app, `net10.0` | Interactive admin console using Bogus or LiteDB persistence |
 | `CM.Domain` | Class library, `net10.0` | All domain entities, CQRS interfaces, commands, events, queries, and result types |
 | `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
 | `CM.Bogus` | Class library, `net10.0` | Deterministic Bogus-generated seed data for development and testing |
@@ -14,6 +15,7 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 | `CM.LiteDB.Tests` | xUnit test project, `net10.0` | Unit tests for CM.LiteDB data services |
 
 Project names follow the `CM.*` prefix convention. Projects are organised into sub-folders:
+- `Applications/CM.AdminConsole` — admin console app
 - `Domain/CM.Domain` — domain layer
 - `Library/CM.Bogus` — Bogus seed data library
 - `Library/CM.LiteDB` — LiteDB persistence library
@@ -131,6 +133,22 @@ Domain/CM.Domain/
       GetUserHandler.cs
       UserDto.cs          — has secondary ctor: UserDto(User)
 ```
+
+---
+
+## CM.AdminConsole Structure
+
+```
+Applications/CM.AdminConsole/
+  _GlobalUsings.cs
+  CM.AdminConsole.csproj
+  Program.cs           — top-level statements; builds DI container with AddDefaultHandlers() + AddBogusDataServices() (or AddLiteDbDataServices())
+```
+
+### AdminConsole Notes
+- Console app referencing `CM.Domain`, `CM.Bogus`, and `CM.LiteDB`
+- Registers `ILiteDatabase` as a singleton (`new LiteDatabase("CheckMate.db")`) when using LiteDB
+- Calls `AddDefaultHandlers()` plus either `AddBogusDataServices()` or `AddLiteDbDataServices()` — swap to switch persistence backend
 
 ---
 

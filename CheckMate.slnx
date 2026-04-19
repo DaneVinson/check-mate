@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Applications\CM.AdminConsole\CM.AdminConsole.csproj" />
   <Project Path="Domain\CM.Domain\CM.Domain.csproj" />
   <Project Path="Library\CM.Bogus\CM.Bogus.csproj" />
   <Project Path="Library\CM.LiteDB\CM.LiteDB.csproj" />

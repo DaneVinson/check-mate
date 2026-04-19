@@ -1,0 +1,10 @@
+global using CM.Bogus;
+global using CM.Domain;
+global using CM.Domain.CheckLists;
+global using CM.Domain.Cqrs;
+global using CM.Domain.Users.Commands;
+global using CM.Domain.Users.Events;
+global using CM.Domain.Users.Queries;
+global using CM.LiteDB;
+global using LiteDB;
+global using Microsoft.Extensions.DependencyInjection;

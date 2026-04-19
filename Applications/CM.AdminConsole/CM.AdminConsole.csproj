@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\CM.Domain\CM.Domain.csproj" />
+    <ProjectReference Include="..\..\Library\CM.Bogus\CM.Bogus.csproj" />
+    <ProjectReference Include="..\..\Library\CM.LiteDB\CM.LiteDB.csproj" />
+  </ItemGroup>
+
+</Project>
