@@ -7,7 +7,9 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 | Project | Type | Purpose |
 |---|---|---|
 | `CM.AdminConsole` | Console app, `net10.0` | Interactive admin console using Bogus or LiteDB persistence |
+| `CM.Api` | Web app, `net10.0` | FastEndpoints HTTP API with `POST /commands` and `POST /queries` dispatcher endpoints |
 | `CM.Domain` | Class library, `net10.0` | All domain entities, CQRS interfaces, commands, events, queries, and result types |
+| `CM.FastEndpoints` | Class library, `net10.0` | FastEndpoints endpoint implementations for CM.Api |
 | `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
 | `CM.Bogus` | Class library, `net10.0` | Deterministic Bogus-generated seed data for development and testing |
 | `CM.Domain.Tests` | xUnit test project, `net10.0` | Unit tests for CM.Domain handlers and CQRS infrastructure |
@@ -16,8 +18,10 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 
 Project names follow the `CM.*` prefix convention. Projects are organised into sub-folders:
 - `Applications/CM.AdminConsole` — admin console app
+- `Applications/CM.Api` — FastEndpoints web API
 - `Domain/CM.Domain` — domain layer
 - `Library/CM.Bogus` — Bogus seed data library
+- `Library/CM.FastEndpoints` — FastEndpoints endpoint library
 - `Library/CM.LiteDB` — LiteDB persistence library
 - `Tests/CM.Domain.Tests` — domain unit tests
 - `Tests/CM.Bogus.Tests` — Bogus data service unit tests
@@ -133,6 +137,52 @@ Domain/CM.Domain/
       GetUserHandler.cs
       UserDto.cs          — has secondary ctor: UserDto(User)
 ```
+
+---
+
+## CM.Api Structure
+
+```
+Applications/CM.Api/
+  _GlobalUsings.cs
+  CM.Api.csproj
+  Program.cs             — top-level statements; registers JsonSerializerOptions (singleton); calls AddDefaultHandlers(), AddBogusDataServices(), AddFastEndpoints(); uses FastEndpoints 8.1.0
+```
+
+### CM.Api Notes
+- Uses **FastEndpoints 8.1.0** (`Microsoft.NET.Sdk.Web`, `net10.0`)
+- References `CM.Domain`, `CM.Bogus`, and `CM.FastEndpoints`
+- Endpoint implementations live in `CM.FastEndpoints`; `CM.Api` is only the host
+- `using FastEndpoints;` is in `Program.cs` only; endpoint base classes are qualified as `global::FastEndpoints.Endpoint<T>` in `CM.FastEndpoints` to avoid namespace collision with `CM.FastEndpoints`
+- `Program.cs` registers `JsonSerializerOptions` as a singleton (`new JsonSerializerOptions(JsonSerializerDefaults.Web)`)
+- No `IMessenger<IEvent>` registration currently — handlers require one to be added when messaging is needed
+
+---
+
+## CM.FastEndpoints Structure
+
+```
+Library/CM.FastEndpoints/
+  _GlobalUsings.cs
+  CM.FastEndpoints.csproj
+  Commands/
+    CommandRequest.cs    — public record CommandRequest(JsonElement Payload, string Type)
+    CommandsEndpoint.cs  — internal sealed; POST /commands; ResolveCommandType() switch → Type; deserializes payload; resolves ICommandHandler<T> via MakeGenericType + GetRequiredService; invokes via reflection; unknown type → 400; on success → 204
+  Queries/
+    QueryRequest.cs      — public record QueryRequest(JsonElement Payload, string Type)
+    QueriesEndpoint.cs   — internal sealed; POST /queries; ResolveQueryTypes() switch → (QueryType, ResultType); deserializes payload; resolves IQueryHandler<T,TResult> via MakeGenericType + GetRequiredService; invokes via reflection; reads Result<T> properties via reflection; on error → 400; null → 404; success → 200 + JSON
+```
+
+### CM.FastEndpoints Notes
+- References `CM.Domain` only (no data backend dependency)
+- `FastEndpoints` package and `FrameworkReference Microsoft.AspNetCore.App` both referenced in the csproj
+- Endpoints use constructor injection: `CommandsEndpoint(JsonSerializerOptions)`, `QueriesEndpoint(JsonSerializerOptions)`
+- Request shape: `{ "type": "CreateUser", "payload": { ... } }` — `type` is the exact command/query class name
+- `JsonSerializerOptions` initialized with `JsonSerializerDefaults.Web` (case-insensitive, camelCase, number-from-string); registered as singleton in CM.Api's `Program.cs`
+- Unknown `type` value returns 400 `{ "message": "Unknown type: {type}" }`
+- `CommandsEndpoint` does **not** detect `CommandFailed` — no `IMessenger<IEvent>` is wired; always returns 204 on dispatch success
+- **Commands** (10 total): CheckCheckable, CreateCheckable, CreateCheckList, CreateUser, DeleteCheckable, DeleteCheckList, UncheckCheckable, UpdateCheckable, UpdateCheckList, UpdateUser
+- **Queries** (4 total): GetCheckablesByCheckList, GetCheckList, GetCheckListsByUser, GetUser
 
 ---
 

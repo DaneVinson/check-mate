@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FastEndpoints" Version="8.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Domain\CM.Domain\CM.Domain.csproj" />
+    <ProjectReference Include="..\..\Library\CM.Bogus\CM.Bogus.csproj" />
+    <ProjectReference Include="..\..\Library\CM.FastEndpoints\CM.FastEndpoints.csproj" />
+  </ItemGroup>
+
+</Project>

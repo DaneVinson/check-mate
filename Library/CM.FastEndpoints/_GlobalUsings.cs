@@ -1,0 +1,10 @@
+global using CM.Domain.Checkables.Commands;
+global using CM.Domain.Checkables.Queries;
+global using CM.Domain.CheckLists.Commands;
+global using CM.Domain.CheckLists.Queries;
+global using CM.Domain.Cqrs;
+global using CM.Domain.Users.Commands;
+global using CM.Domain.Users.Queries;
+global using Microsoft.AspNetCore.Http;
+global using Microsoft.Extensions.DependencyInjection;
+global using System.Text.Json;

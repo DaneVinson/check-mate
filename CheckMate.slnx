@@ -1,7 +1,9 @@
 <Solution>
   <Project Path="Applications\CM.AdminConsole\CM.AdminConsole.csproj" />
+  <Project Path="Applications\CM.Api\CM.Api.csproj" />
   <Project Path="Domain\CM.Domain\CM.Domain.csproj" />
   <Project Path="Library\CM.Bogus\CM.Bogus.csproj" />
+  <Project Path="Library\CM.FastEndpoints\CM.FastEndpoints.csproj" />
   <Project Path="Library\CM.LiteDB\CM.LiteDB.csproj" />
   <Project Path="Tests\CM.Domain.Tests\CM.Domain.Tests.csproj" />
   <Project Path="Tests\CM.Bogus.Tests\CM.Bogus.Tests.csproj" />
