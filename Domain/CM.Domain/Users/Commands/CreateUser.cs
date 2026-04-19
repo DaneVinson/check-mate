@@ -20,6 +20,11 @@ public record CreateUser(string Email, string Name) : ICommand, IValidatable
             return new FailResult("Email is required.");
         }
 
+        if (!System.Net.Mail.MailAddress.TryCreate(Email, out _))
+        {
+            return new FailResult("Email is not a valid email address.");
+        }
+
         if (string.IsNullOrWhiteSpace(Name))
         {
             return new FailResult("Name is required.");

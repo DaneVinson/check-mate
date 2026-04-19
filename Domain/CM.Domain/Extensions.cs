@@ -37,6 +37,7 @@ public static class Extensions
 
         // User query handlers
         services.AddScoped<IQueryHandler<GetUser, UserDto?>, GetUserHandler>();
+        services.AddScoped<IQueryHandler<GetUserEmailExists, bool>, GetUserEmailExistsHandler>();
 
         return services;
     }

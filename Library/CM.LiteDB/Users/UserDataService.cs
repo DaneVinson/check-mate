@@ -18,7 +18,21 @@ internal sealed class UserDataService : IUserDataService
         _database = database ?? throw new ArgumentNullException(nameof(database));
     }
 
-    private ILiteCollection<BsonDocument> Collection => _database.GetCollection(CollectionName);
+    private ILiteCollection<BsonDocument> Collection
+    {
+        get
+        {
+            var col = _database.GetCollection(CollectionName);
+            col.EnsureIndex("email");
+            return col;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<Result<bool>> ExistsByEmailAsync(string email)
+    {
+        return Task.FromResult<Result<bool>>(Collection.Exists(Query.EQ("email", new BsonValue(email))));
+    }
 
     /// <inheritdoc />
     public Task<Result<User>> GetByIdAsync(Guid userId)
