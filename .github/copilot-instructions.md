@@ -10,7 +10,10 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 | `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
 | `CM.Bogus` | Class library, `net10.0` | Deterministic Bogus-generated seed data for development and testing |
 
-Project names follow the `CM.*` prefix convention. No `src/` folder — projects sit at the repo root.
+Project names follow the `CM.*` prefix convention. Projects are organised into sub-folders:
+- `Domain/CM.Domain` — domain layer
+- `Library/CM.Bogus` — Bogus seed data library
+- `Library/CM.LiteDB` — LiteDB persistence library
 
 ---
 
@@ -48,7 +51,7 @@ Project names follow the `CM.*` prefix convention. No `src/` folder — projects
 ## CM.Domain Structure
 
 ```
-CM.Domain/
+Domain/CM.Domain/
   _GlobalUsings.cs
   Extensions.cs        — static class; AddDefaultHandlers() extension on IServiceCollection
   Cqrs/
@@ -128,9 +131,17 @@ CM.Domain/
 ## CM.Bogus Structure
 
 ```
-CM.Bogus/
+Library/CM.Bogus/
   _GlobalUsings.cs
   DataSeed.cs          — static class; deterministic seed data via Bogus
+  DataStore.cs         — internal static class; loads seed data into mutable lists; exposes Lock SyncRoot
+  Extensions.cs        — static class; AddBogusDataServices() extension on IServiceCollection
+  Checkables/
+    CheckableDataService.cs  — internal sealed; implements ICheckableDataService
+  CheckLists/
+    CheckListDataService.cs  — internal sealed; implements ICheckListDataService
+  Users/
+    UserDataService.cs       — internal sealed; implements IUserDataService
 ```
 
 ### DataSeed
@@ -140,21 +151,45 @@ CM.Bogus/
 - Generates 10 `CheckList` instances, each with 3–20 `Checkable` items
 - `Checkable.CheckListId` is always correctly set to its parent `CheckList.Id`
 
+### DataStore
+- `internal static class DataStore` — loads seed data from `DataSeed` into private `List<T>` fields in its static constructor
+- Exposes `Checkables`, `CheckLists`, `Users` as `internal static List<T>` properties
+- Exposes `internal static Lock SyncRoot` for thread-safe access
+- Data service implementations use `using var scope = DataStore.SyncRoot.EnterScope()` for locking
+
+### Bogus Data Services
+- Each `XxxDataService` is `internal sealed`, lives in `CM.Bogus/Xxx/`
+- Implements the corresponding `IXxxDataService` from `CM.Domain` using `DataStore` as the backing store
+- Uses `Task.FromResult` (synchronous operations wrapped as tasks)
+- `AddBogusDataServices(this IServiceCollection)` in `Extensions.cs` registers all three as scoped
+
 ---
 
 ## CM.LiteDB Structure
 
 ```
-CM.LiteDB/
+Library/CM.LiteDB/
   _GlobalUsings.cs
+  Extensions.cs        — static class; AddLiteDbDataServices() extension on IServiceCollection
+  Checkables/
+    CheckableDataService.cs  — internal sealed; implements ICheckableDataService
+  CheckLists/
+    CheckListDataService.cs  — internal sealed; implements ICheckListDataService
+  Users/
+    UserDataService.cs       — internal sealed; implements IUserDataService
 ```
 
-LiteDB implementations of `IXxxDataService` interfaces are added under mirrored sub-folders as they are implemented (e.g. `Checkables/`, `CheckLists/`, `Users/`).
-
-### Implementation Naming
-- Named `XxxDataService` — e.g. `CheckableDataService`
-- Sealed classes implementing the corresponding `IXxxDataService` interface from `CM.Domain`
-- Injected dependencies (e.g. `ILiteDatabase`) are private fields, assigned in the constructor, null-guarded
+### LiteDB Data Services
+- Each `XxxDataService` is `internal sealed`, lives in `CM.LiteDB/Xxx/`
+- Implements the corresponding `IXxxDataService` from `CM.Domain` using `ILiteDatabase`
+- `ILiteDatabase` is injected via constructor, null-guarded
+- Entities are mapped to/from `BsonDocument` explicitly — no auto-mapper
+- `DateTimeOffset` stored as ISO 8601 string (`"O"` format)
+- Collections and indexing:
+  - `User` → collection `"users"`, keyed by `Id`
+  - `CheckList` → collection `"checklists"`, keyed by `Id`, indexed on `userId`
+  - `Checkable` → collection `"checkables"`, keyed by `Id`, indexed on `checkListId`
+- `AddLiteDbDataServices(this IServiceCollection)` in `Extensions.cs` registers all three as scoped
 
 ---
 
@@ -256,9 +291,12 @@ LiteDB implementations of `IXxxDataService` interfaces are added under mirrored 
 - `CommandFailed(Guid? CommandId, string Message)` — cross-cutting event sent by any handler on failure or validation error
 
 ### DI Registration
-- `Extensions.cs` — static class in `CM.Domain` root namespace
-- `AddDefaultHandlers(this IServiceCollection)` registers all command and query handlers as scoped
-- Requires `Microsoft.Extensions.DependencyInjection.Abstractions` package
+- `Extensions.cs` — static class in each project's root namespace
+- `CM.Domain`: `AddDefaultHandlers(this IServiceCollection)` registers all command and query handlers as scoped
+- `CM.Bogus`: `AddBogusDataServices(this IServiceCollection)` registers the three Bogus data services as scoped
+- `CM.LiteDB`: `AddLiteDbDataServices(this IServiceCollection)` registers the three LiteDB data services as scoped
+- All require `Microsoft.Extensions.DependencyInjection.Abstractions` package
+- Typical setup: call `AddDefaultHandlers()` plus one of `AddBogusDataServices()` or `AddLiteDbDataServices()`
 
 ---
 

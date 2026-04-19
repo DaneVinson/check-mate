@@ -6,10 +6,11 @@
 
   <ItemGroup>
     <PackageReference Include="Bogus" Version="35.6.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CM.Domain\CM.Domain.csproj" />
+    <ProjectReference Include="..\..\Domain\CM.Domain\CM.Domain.csproj" />
   </ItemGroup>
 
 </Project>

@@ -6,10 +6,11 @@
 
   <ItemGroup>
     <PackageReference Include="LiteDB" Version="5.0.21" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CM.Domain\CM.Domain.csproj" />
+    <ProjectReference Include="..\..\Domain\CM.Domain\CM.Domain.csproj" />
   </ItemGroup>
 
 </Project>
