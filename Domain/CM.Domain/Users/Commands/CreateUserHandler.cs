@@ -29,6 +29,19 @@ public sealed class CreateUserHandler : ICommandHandler<CreateUser>
             return;
         }
 
+        var existsResult = await _dataService.ExistsByEmailAsync(command.Email);
+        if (existsResult.IsError)
+        {
+            await _messenger.SendAsync(new CommandFailed(command.Id, existsResult.Error.Message), cancellationToken);
+            return;
+        }
+
+        if (existsResult.Value)
+        {
+            await _messenger.SendAsync(new CommandFailed(command.Id, "A user with this email address already exists."), cancellationToken);
+            return;
+        }
+
         var result = await _dataService.UpsertAsync(new User(DateTimeOffset.UtcNow, command.Email, Guid.CreateVersion7(), command.Name));
         if (result.IsError)
         {

@@ -97,9 +97,52 @@ public sealed class CreateUserHandlerTests
     }
 
     [Fact]
+    public async Task HandleAsync_Sends_CommandFailed_When_ExistsByEmailAsync_Returns_Error()
+    {
+        var command = new CreateUser("bilbo@shire.me", "Bilbo Baggins");
+        _dataService.ExistsByEmailAsync(command.Email)
+            .Returns(Task.FromResult<Result<bool>>(new FailResult("DB error")));
+        var sut = new CreateUserHandler(_dataService, _messenger);
+
+        await sut.HandleAsync(command);
+
+        var sentEvent = _messenger.ReceivedCalls().Should().ContainSingle().Subject.GetArguments()[0];
+        sentEvent.Should().BeOfType<CommandFailed>().Which.CommandId.Should().Be(command.Id);
+    }
+
+    [Fact]
+    public async Task HandleAsync_Sends_CommandFailed_When_Email_Already_Exists()
+    {
+        var command = new CreateUser("bilbo@shire.me", "Bilbo Baggins");
+        _dataService.ExistsByEmailAsync(command.Email)
+            .Returns(Task.FromResult<Result<bool>>(true));
+        var sut = new CreateUserHandler(_dataService, _messenger);
+
+        await sut.HandleAsync(command);
+
+        var sentEvent = _messenger.ReceivedCalls().Should().ContainSingle().Subject.GetArguments()[0];
+        sentEvent.Should().BeOfType<CommandFailed>().Which.CommandId.Should().Be(command.Id);
+    }
+
+    [Fact]
+    public async Task HandleAsync_Does_Not_Upsert_When_Email_Already_Exists()
+    {
+        var command = new CreateUser("bilbo@shire.me", "Bilbo Baggins");
+        _dataService.ExistsByEmailAsync(command.Email)
+            .Returns(Task.FromResult<Result<bool>>(true));
+        var sut = new CreateUserHandler(_dataService, _messenger);
+
+        await sut.HandleAsync(command);
+
+        await _dataService.DidNotReceive().UpsertAsync(Arg.Any<User>());
+    }
+
+    [Fact]
     public async Task HandleAsync_Sends_CommandFailed_When_UpsertAsync_Returns_Error()
     {
         var command = new CreateUser("bilbo@shire.me", "Bilbo Baggins");
+        _dataService.ExistsByEmailAsync(command.Email)
+            .Returns(Task.FromResult<Result<bool>>(false));
         _dataService.UpsertAsync(Arg.Any<User>())
             .Returns(Task.FromResult<Result<User>>(new FailResult("DB error")));
         var sut = new CreateUserHandler(_dataService, _messenger);
@@ -115,6 +158,8 @@ public sealed class CreateUserHandlerTests
     {
         var command = new CreateUser("bilbo@shire.me", "Bilbo Baggins");
         var user = new User(DateTimeOffset.UtcNow, "bilbo@shire.me", Guid.NewGuid(), "Bilbo Baggins");
+        _dataService.ExistsByEmailAsync(command.Email)
+            .Returns(Task.FromResult<Result<bool>>(false));
         _dataService.UpsertAsync(Arg.Any<User>())
             .Returns(Task.FromResult<Result<User>>(user));
         var sut = new CreateUserHandler(_dataService, _messenger);
@@ -131,6 +176,8 @@ public sealed class CreateUserHandlerTests
         var id = Guid.NewGuid();
         var command = new CreateUser("bilbo@shire.me", "Bilbo Baggins");
         var user = new User(DateTimeOffset.UtcNow, "bilbo@shire.me", id, "Bilbo Baggins");
+        _dataService.ExistsByEmailAsync(command.Email)
+            .Returns(Task.FromResult<Result<bool>>(false));
         _dataService.UpsertAsync(Arg.Any<User>())
             .Returns(Task.FromResult<Result<User>>(user));
         var sut = new CreateUserHandler(_dataService, _messenger);
