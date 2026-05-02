@@ -25,7 +25,7 @@ internal sealed class CommandsEndpoint : global::FastEndpoints.Endpoint<CommandR
     /// <inheritdoc />
     public override async Task HandleAsync(CommandRequest request, CancellationToken cancellationToken)
     {
-        var commandType = ResolveCommandType(request.Type);
+        var commandType = CommandTypeResolver.Resolve(request.Type);
         if (commandType is null)
         {
             HttpContext.Response.StatusCode = 400;
@@ -38,19 +38,4 @@ internal sealed class CommandsEndpoint : global::FastEndpoints.Endpoint<CommandR
         var handler = (ICommandHandler)HttpContext.RequestServices.GetRequiredService(handlerType);
         await handler.HandleAsync(command, cancellationToken);
     }
-
-    private static Type? ResolveCommandType(string type) => type switch
-    {
-        "CheckCheckable" => typeof(CheckCheckable),
-        "CreateCheckable" => typeof(CreateCheckable),
-        "CreateCheckList" => typeof(CreateCheckList),
-        "CreateUser" => typeof(CreateUser),
-        "DeleteCheckable" => typeof(DeleteCheckable),
-        "DeleteCheckList" => typeof(DeleteCheckList),
-        "UncheckCheckable" => typeof(UncheckCheckable),
-        "UpdateCheckable" => typeof(UpdateCheckable),
-        "UpdateCheckList" => typeof(UpdateCheckList),
-        "UpdateUser" => typeof(UpdateUser),
-        _ => null
-    };
 }

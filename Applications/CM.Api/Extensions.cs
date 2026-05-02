@@ -3,7 +3,7 @@ namespace CM.Api;
 /// <summary>
 /// Extension methods for <see cref="IConfiguration"/>.
 /// </summary>
-internal static class Extensions
+public static class Extensions
 {
     /// <summary>
     /// Binds a configuration section to an instance of <typeparamref name="T"/>.

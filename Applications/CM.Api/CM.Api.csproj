@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\Domain\CM.Domain\CM.Domain.csproj" />
     <ProjectReference Include="..\..\Library\CM.Bogus\CM.Bogus.csproj" />
     <ProjectReference Include="..\..\Library\CM.FastEndpoints\CM.FastEndpoints.csproj" />
+    <ProjectReference Include="..\..\Library\CM.SignalR\CM.SignalR.csproj" />
   </ItemGroup>
 
 </Project>

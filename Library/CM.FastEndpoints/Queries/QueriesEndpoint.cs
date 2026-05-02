@@ -25,7 +25,7 @@ internal sealed class QueriesEndpoint : global::FastEndpoints.Endpoint<QueryRequ
     /// <inheritdoc />
     public override async Task HandleAsync(QueryRequest request, CancellationToken cancellationToken)
     {
-        var types = ResolveQueryTypes(request.Type);
+        var types = QueryTypeResolver.Resolve(request.Type);
         if (types is null)
         {
             HttpContext.Response.StatusCode = 400;
@@ -53,13 +53,4 @@ internal sealed class QueriesEndpoint : global::FastEndpoints.Endpoint<QueryRequ
 
         await HttpContext.Response.WriteAsJsonAsync(result.Value, cancellationToken);
     }
-
-    private static (Type QueryType, Type ResultType)? ResolveQueryTypes(string type) => type switch
-    {
-        "GetCheckablesByCheckList" => (typeof(GetCheckablesByCheckList), typeof(IReadOnlyList<CheckableDto>)),
-        "GetCheckList" => (typeof(GetCheckList), typeof(CheckListDto)),
-        "GetCheckListsByUser" => (typeof(GetCheckListsByUser), typeof(IReadOnlyList<CheckListDto>)),
-        "GetUser" => (typeof(GetUser), typeof(UserDto)),
-        _ => null
-    };
 }

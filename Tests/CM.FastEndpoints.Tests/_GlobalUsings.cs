@@ -1,0 +1,14 @@
+global using CM.Domain.Checkables.Commands;
+global using CM.Domain.Checkables.Queries;
+global using CM.Domain.CheckLists.Commands;
+global using CM.Domain.CheckLists.Queries;
+global using CM.Domain.Cqrs;
+global using CM.Domain.Users;
+global using CM.Domain.Users.Commands;
+global using CM.Domain.Users.Queries;
+global using CM.FastEndpoints.Auth;
+global using CM.FastEndpoints.Commands;
+global using CM.FastEndpoints.Queries;
+global using FluentAssertions;
+global using NSubstitute;
+global using Xunit;

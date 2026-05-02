@@ -12,8 +12,11 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 | `CM.FastEndpoints` | Class library, `net10.0` | FastEndpoints endpoint implementations for CM.Api |
 | `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
 | `CM.Bogus` | Class library, `net10.0` | Deterministic Bogus-generated seed data for development and testing |
+| `CM.SignalR` | Class library, `net10.0` | SignalR hub and `IMessenger<IEvent>` implementation for real-time event delivery |
 | `CM.Domain.Tests` | xUnit test project, `net10.0` | Unit tests for CM.Domain handlers and CQRS infrastructure |
+| `CM.Api.Tests` | xUnit test project, `net10.0` | Unit tests for CM.Api utilities |
 | `CM.Bogus.Tests` | xUnit test project, `net10.0` | Unit tests for CM.Bogus data services and seed data |
+| `CM.FastEndpoints.Tests` | xUnit test project, `net10.0` | Unit tests for CM.FastEndpoints type resolvers and JWT options |
 | `CM.LiteDB.Tests` | xUnit test project, `net10.0` | Unit tests for CM.LiteDB data services |
 
 Project names follow the `CM.*` prefix convention. Projects are organised into sub-folders:
@@ -23,8 +26,11 @@ Project names follow the `CM.*` prefix convention. Projects are organised into s
 - `Library/CM.Bogus` — Bogus seed data library
 - `Library/CM.FastEndpoints` — FastEndpoints endpoint library
 - `Library/CM.LiteDB` — LiteDB persistence library
-- `Tests/CM.Domain.Tests` — domain unit tests
+- `Library/CM.SignalR` — SignalR hub and messenger
+- `Tests/CM.Api.Tests` — API utility unit tests
 - `Tests/CM.Bogus.Tests` — Bogus data service unit tests
+- `Tests/CM.Domain.Tests` — domain unit tests
+- `Tests/CM.FastEndpoints.Tests` — FastEndpoints type resolver and options tests
 - `Tests/CM.LiteDB.Tests` — LiteDB data service unit tests
 
 ---
@@ -151,21 +157,23 @@ Applications/CM.Api/
   _GlobalUsings.cs
   appsettings.json     — Jwt configuration under the "JwtOptions" section
   CM.Api.csproj
-  Extensions.cs        — internal static class; GetConfigObject<T>(this IConfiguration, string? configPath = null) extension method
-  Program.cs           — top-level statements; registers JsonSerializerOptions and JwtOptions singletons; calls AddDefaultHandlers(), AddBogusDataServices(), AddFastEndpoints(); configures JWT Bearer auth and authorization middleware
+  Extensions.cs        — public static class; GetConfigObject<T>(this IConfiguration, string? configPath = null) extension method
+  Program.cs           — top-level statements; registers JsonSerializerOptions and JwtOptions singletons; calls AddDefaultHandlers(), AddBogusDataServices(), AddSignalRMessenger(), AddFastEndpoints(); configures JWT Bearer auth and authorization middleware; maps CheckMateHub to /events
 ```
 
 ### CM.Api Notes
 - Uses **FastEndpoints 8.1.0** (`Microsoft.NET.Sdk.Web`, `net10.0`)
-- References `CM.Domain`, `CM.Bogus`, `CM.FastEndpoints`; also references `Microsoft.AspNetCore.Authentication.JwtBearer` package
+- References `CM.Domain`, `CM.Bogus`, `CM.FastEndpoints`, `CM.SignalR`; also references `FastEndpoints 8.1.0` and `Microsoft.AspNetCore.Authentication.JwtBearer` packages
 - Endpoint implementations live in `CM.FastEndpoints`; `CM.Api` is only the host
 - `using FastEndpoints;` is in `Program.cs` only; endpoint base classes are qualified as `global::FastEndpoints.Endpoint<T>` in `CM.FastEndpoints` to avoid namespace collision with `CM.FastEndpoints`
 - `Program.cs` registers `JsonSerializerOptions` as a singleton (`new JsonSerializerOptions(JsonSerializerDefaults.Web)`)
 - `Program.cs` binds `"JwtOptions"` config section to a `JwtOptions` singleton via `builder.Configuration.GetConfigObject<JwtOptions>()`
 - JWT Bearer authentication is configured from the `JwtOptions` singleton; `UseAuthentication()` and `UseAuthorization()` are called before `UseFastEndpoints()`
 - Chained service registrations start each method on its own line: `builder.Services\n    .AddAuthentication(...)\n    .AddJwtBearer(...)`
-- No `IMessenger<IEvent>` registration currently — handlers require one to be added when messaging is needed
-- `Extensions.GetConfigObject<T>` defaults the config section path to `typeof(T).Name`; throws `InvalidOperationException` if the section is missing or cannot be bound
+- `IMessenger<IEvent>` is registered by `AddSignalRMessenger()` from `CM.SignalR`
+- `Extensions.GetConfigObject<T>` is `public static`; defaults the config section path to `typeof(T).Name`; throws `InvalidOperationException` if the section is missing or cannot be bound
+- `Program.cs` calls `app.MapHub<CheckMateHub>("/events")` before `UseFastEndpoints()`
+- JWT Bearer `OnMessageReceived` reads `access_token` from query string for SignalR WebSocket connections
 
 ---
 
@@ -182,11 +190,13 @@ Library/CM.FastEndpoints/
     LoginResponse.cs     — public record LoginResponse(string AccessToken, int ExpiresIn, string TokenType)
     LogoutEndpoint.cs    — internal sealed; POST /auth/logout; requires auth (no AllowAnonymous); returns 204; token invalidation is client-side only
   Commands/
-    CommandRequest.cs    — public record CommandRequest(JsonElement Payload, string Type)
-    CommandsEndpoint.cs  — internal sealed; POST /commands; ResolveCommandType() switch → Type; deserializes payload; resolves ICommandHandler<T> via MakeGenericType + GetRequiredService; casts to ICommandHandler and calls HandleAsync directly; unknown type → 400; on success → 204
+    CommandRequest.cs      — public record CommandRequest(JsonElement Payload, string Type)
+    CommandsEndpoint.cs    — internal sealed; POST /commands; calls CommandTypeResolver.Resolve(); deserializes payload; resolves ICommandHandler<T> via MakeGenericType + GetRequiredService; casts to ICommandHandler and calls HandleAsync directly; unknown type → 400; on success → 204
+    CommandTypeResolver.cs — public static class; Resolve(string type) → Type?; switch maps type name strings to command types
   Queries/
-    QueryRequest.cs      — public record QueryRequest(JsonElement Payload, string Type)
-    QueriesEndpoint.cs   — internal sealed; POST /queries; ResolveQueryTypes() switch → (QueryType, ResultType); deserializes payload; resolves IQueryHandler<T,TResult> via MakeGenericType + GetRequiredService; casts to IQueryHandler and calls HandleAsync directly; reads IResult properties; on error → 400; null → 404; success → 200 + JSON
+    QueryRequest.cs        — public record QueryRequest(JsonElement Payload, string Type)
+    QueriesEndpoint.cs     — internal sealed; POST /queries; calls QueryTypeResolver.Resolve(); deserializes payload; resolves IQueryHandler<T,TResult> via MakeGenericType + GetRequiredService; casts to IQueryHandler and calls HandleAsync directly; reads IResult properties; on error → 400; null → 404; success → 200 + JSON
+    QueryTypeResolver.cs   — public static class; Resolve(string type) → (QueryType, ResultType)?; switch maps type name strings to query and result types
 ```
 
 ### CM.FastEndpoints Notes
@@ -196,11 +206,34 @@ Library/CM.FastEndpoints/
 - Request shape for commands/queries: `{ "type": "CreateUser", "payload": { ... } }` — `type` is the exact command/query class name
 - `JsonSerializerOptions` initialized with `JsonSerializerDefaults.Web` (case-insensitive, camelCase, number-from-string); registered as singleton in CM.Api's `Program.cs`
 - Unknown `type` value returns 400 `{ "message": "Unknown type: {type}" }`
-- `CommandsEndpoint` does **not** detect `CommandFailed` — no `IMessenger<IEvent>` is wired; always returns 204 on dispatch success
+- `CommandsEndpoint` does **not** detect `CommandFailed` — always returns 204 on dispatch success
+- Type resolution is in `CommandTypeResolver` and `QueryTypeResolver` — public static classes, directly unit-testable without `InternalsVisibleTo`
+- Do not use `InternalsVisibleTo` or expose internal members for testing; extract logic into public types instead
 - **Commands** (10 total): CheckCheckable, CreateCheckable, CreateCheckList, CreateUser, DeleteCheckable, DeleteCheckList, UncheckCheckable, UpdateCheckable, UpdateCheckList, UpdateUser
 - **Queries** (4 total): GetCheckablesByCheckList, GetCheckList, GetCheckListsByUser, GetUser
 - **JWT token claims**: `sub` (userId), `email`, `iat`, `jti`, `name`, `userId` (custom convenience claim)
 - `LogoutEndpoint` inherits `EndpointWithoutRequest`; JWT tokens are stateless so invalidation is client-side
+
+---
+
+## CM.SignalR Structure
+
+```
+Library/CM.SignalR/
+  _GlobalUsings.cs
+  CM.SignalR.csproj
+  CheckMateHub.cs    — public sealed class; inherits Hub; [Authorize]; no server-side methods; clients passively receive events
+  EventMessenger.cs  — internal sealed; implements IMessenger<IEvent>; resolves userId from HttpContext.User (ClaimTypes.NameIdentifier); sends { payload, type } envelope to IHubContext<CheckMateHub>.Clients.User(userId) via "ReceiveEvent"
+  Extensions.cs      — public static class; AddSignalRMessenger(this IServiceCollection); registers AddHttpContextAccessor(), AddSignalR(), IMessenger<IEvent> as scoped EventMessenger
+```
+
+### CM.SignalR Notes
+- Uses `FrameworkReference Microsoft.AspNetCore.App` — no additional SignalR NuGet package needed
+- References `CM.Domain` only
+- `EventMessenger` constructor: `(IHttpContextAccessor httpContextAccessor, IHubContext<CheckMateHub> hubContext)` — both null-guarded
+- `SendAsync` returns early (no-op) if `HttpContext` or the `NameIdentifier` claim is null
+- Event envelope sent to client: `new { payload = message, type = message.GetType().Name }` on channel `"ReceiveEvent"`
+- Events are user-scoped — only the authenticated user who triggered the command receives the resulting event
 
 ---
 
@@ -329,6 +362,21 @@ Tests/CM.Bogus.Tests/
   Users/
     UserDataServiceTests.cs
 
+Tests/CM.Api.Tests/
+  _GlobalUsings.cs
+  CM.Api.Tests.csproj
+  ExtensionsTests.cs
+
+Tests/CM.FastEndpoints.Tests/
+  _GlobalUsings.cs
+  CM.FastEndpoints.Tests.csproj
+  Auth/
+    JwtOptionsTests.cs
+  Commands/
+    CommandsEndpointTests.cs    — tests CommandTypeResolver.Resolve()
+  Queries/
+    QueriesEndpointTests.cs     — tests QueryTypeResolver.Resolve()
+
 Tests/CM.LiteDB.Tests/
   _GlobalUsings.cs
   CM.LiteDB.Tests.csproj
@@ -349,6 +397,7 @@ Tests/CM.LiteDB.Tests/
 - No `using` directives in individual test files
 - Test projects reference `Microsoft.Extensions.DependencyInjection` (full package, not just Abstractions) where DI container is needed
 - LiteDB test classes implement `IDisposable` to dispose `LiteDatabase` and `ServiceProvider`
+- Do not use `InternalsVisibleTo` to test internal types — extract logic into public types instead
 
 ### Test Patterns
 - **Constructor null guard tests**: one test per nullable constructor parameter using `WithParameterName`

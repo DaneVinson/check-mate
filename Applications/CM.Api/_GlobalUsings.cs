@@ -2,6 +2,7 @@ global using CM.Api;
 global using CM.Bogus;
 global using CM.Domain;
 global using CM.FastEndpoints.Auth;
+global using CM.SignalR;
 global using FastEndpoints;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.AspNetCore.Authentication.JwtBearer;

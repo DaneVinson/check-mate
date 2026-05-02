@@ -5,7 +5,10 @@
   <Project Path="Library\CM.Bogus\CM.Bogus.csproj" />
   <Project Path="Library\CM.FastEndpoints\CM.FastEndpoints.csproj" />
   <Project Path="Library\CM.LiteDB\CM.LiteDB.csproj" />
+  <Project Path="Library\CM.SignalR\CM.SignalR.csproj" />
+  <Project Path="Tests\CM.Api.Tests\CM.Api.Tests.csproj" />
   <Project Path="Tests\CM.Domain.Tests\CM.Domain.Tests.csproj" />
   <Project Path="Tests\CM.Bogus.Tests\CM.Bogus.Tests.csproj" />
+  <Project Path="Tests\CM.FastEndpoints.Tests\CM.FastEndpoints.Tests.csproj" />
   <Project Path="Tests\CM.LiteDB.Tests\CM.LiteDB.Tests.csproj" />
 </Solution>
