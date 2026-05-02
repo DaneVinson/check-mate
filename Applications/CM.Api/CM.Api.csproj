@@ -2,7 +2,41 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <SpaRoot>..\CM.Quasar\</SpaRoot>
   </PropertyGroup>
+
+  <!--
+    BuildQuasarIfMissing: runs on first dotnet build/run only.
+    Skipped on subsequent builds once wwwroot/index.html exists.
+  -->
+  <Target Name="BuildQuasarIfMissing" BeforeTargets="Build"
+          Condition="!Exists('$(MSBuildThisFileDirectory)wwwroot\index.html')">
+    <Message Text="Building CM.Quasar (first run)..." Importance="high" />
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildThisFileDirectory)$(SpaRoot)" />
+    <Exec Command="npx quasar build" WorkingDirectory="$(MSBuildThisFileDirectory)$(SpaRoot)" />
+    <ItemGroup>
+      <SpaDistFiles Include="$(MSBuildThisFileDirectory)$(SpaRoot)dist\spa\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SpaDistFiles)"
+          DestinationFiles="@(SpaDistFiles->'$(MSBuildThisFileDirectory)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+
+  <!--
+    BuildQuasar: always runs on dotnet publish to ensure a fresh production build.
+  -->
+  <Target Name="BuildQuasar" BeforeTargets="Publish">
+    <Message Text="Building CM.Quasar for publish..." Importance="high" />
+    <Exec Command="npm install" WorkingDirectory="$(MSBuildThisFileDirectory)$(SpaRoot)" />
+    <Exec Command="npx quasar build" WorkingDirectory="$(MSBuildThisFileDirectory)$(SpaRoot)" />
+    <ItemGroup>
+      <SpaPublishFiles Include="$(MSBuildThisFileDirectory)$(SpaRoot)dist\spa\**\*" />
+    </ItemGroup>
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(SpaPublishFiles)">
+        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="FastEndpoints" Version="8.1.0" />

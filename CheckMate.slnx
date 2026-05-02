@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/Applications/CM.Quasar/">
+    <File Path="Applications\CM.Quasar\package.json" />
+    <File Path="Applications\CM.Quasar\quasar.config.ts" />
+    <File Path="Applications\CM.Quasar\tsconfig.json" />
+    <File Path="Applications\CM.Quasar\index.html" />
+  </Folder>
   <Project Path="Applications\CM.AdminConsole\CM.AdminConsole.csproj" />
   <Project Path="Applications\CM.Api\CM.Api.csproj" />
   <Project Path="Domain\CM.Domain\CM.Domain.csproj" />

@@ -40,6 +40,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapHub<CheckMateHub>("/events");
@@ -47,5 +49,6 @@ app.UseFastEndpoints(c =>
 {
     c.Serializer.Options.PropertyNameCaseInsensitive = true;
 });
+app.MapFallbackToFile("index.html");
 
 app.Run();
