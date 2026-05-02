@@ -27,4 +27,8 @@ public sealed class GetUserHandler : IQueryHandler<GetUser, UserDto?>
 
         return new UserDto(result.Value);
     }
+
+    /// <inheritdoc />
+    async Task<IResult> IQueryHandler.HandleAsync(object query, CancellationToken cancellationToken)
+        => await HandleAsync((GetUser)query, cancellationToken);
 }

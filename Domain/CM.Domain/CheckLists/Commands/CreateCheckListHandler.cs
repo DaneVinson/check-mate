@@ -38,4 +38,8 @@ public sealed class CreateCheckListHandler : ICommandHandler<CreateCheckList>
 
         await _messenger.SendAsync(new CheckListCreated(new CheckListDto(result.Value), command.Id), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((CreateCheckList)command, cancellationToken);
 }

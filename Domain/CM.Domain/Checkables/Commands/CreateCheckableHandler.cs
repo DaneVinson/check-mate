@@ -38,4 +38,8 @@ public sealed class CreateCheckableHandler : ICommandHandler<CreateCheckable>
 
         await _messenger.SendAsync(new CheckableCreated(new CheckableDto(result.Value), command.Id), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((CreateCheckable)command, cancellationToken);
 }

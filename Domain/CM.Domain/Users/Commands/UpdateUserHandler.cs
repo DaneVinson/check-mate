@@ -47,4 +47,8 @@ public sealed class UpdateUserHandler : ICommandHandler<UpdateUser>
 
         await _messenger.SendAsync(new UserUpdated(command.Id, new UserDto(upsertResult.Value)), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((UpdateUser)command, cancellationToken);
 }

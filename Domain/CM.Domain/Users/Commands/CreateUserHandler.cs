@@ -51,4 +51,8 @@ public sealed class CreateUserHandler : ICommandHandler<CreateUser>
 
         await _messenger.SendAsync(new UserCreated(command.Id, new UserDto(result.Value)), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((CreateUser)command, cancellationToken);
 }

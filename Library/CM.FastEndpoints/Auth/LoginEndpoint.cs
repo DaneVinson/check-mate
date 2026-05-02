@@ -27,9 +27,9 @@ internal sealed class LoginEndpoint : global::FastEndpoints.Endpoint<LoginReques
     }
 
     /// <inheritdoc />
-    public override async Task HandleAsync(LoginRequest req, CancellationToken ct)
+    public override async Task HandleAsync(LoginRequest request, CancellationToken cancellationToken)
     {
-        var result = await _userDataService.GetByEmailAsync(req.Email);
+        var result = await _userDataService.GetByEmailAsync(request.Email);
 
         if (result.IsError)
         {
@@ -39,13 +39,13 @@ internal sealed class LoginEndpoint : global::FastEndpoints.Endpoint<LoginReques
 
         var user = result.Value;
 
-        if (user is null || !user.Name.Equals(req.Name, StringComparison.OrdinalIgnoreCase))
+        if (user is null || !user.Name.Equals(request.Name, StringComparison.OrdinalIgnoreCase))
         {
             HttpContext.Response.StatusCode = 401;
             return;
         }
 
-        await HttpContext.Response.WriteAsJsonAsync(GenerateToken(user), ct);
+        await HttpContext.Response.WriteAsJsonAsync(GenerateToken(user), cancellationToken);
     }
 
     private LoginResponse GenerateToken(User user)

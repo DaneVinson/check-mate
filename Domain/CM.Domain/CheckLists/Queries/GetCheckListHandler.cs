@@ -27,4 +27,8 @@ public sealed class GetCheckListHandler : IQueryHandler<GetCheckList, CheckListD
 
         return new CheckListDto(result.Value);
     }
+
+    /// <inheritdoc />
+    async Task<IResult> IQueryHandler.HandleAsync(object query, CancellationToken cancellationToken)
+        => await HandleAsync((GetCheckList)query, cancellationToken);
 }

@@ -27,4 +27,8 @@ public sealed class GetCheckablesByCheckListHandler : IQueryHandler<GetCheckable
 
         return Result<IReadOnlyList<CheckableDto>>.Success(result.Value.Select(c => new CheckableDto(c)).ToList());
     }
+
+    /// <inheritdoc />
+    async Task<IResult> IQueryHandler.HandleAsync(object query, CancellationToken cancellationToken)
+        => await HandleAsync((GetCheckablesByCheckList)query, cancellationToken);
 }

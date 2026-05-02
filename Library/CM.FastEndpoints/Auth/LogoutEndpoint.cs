@@ -16,7 +16,7 @@ internal sealed class LogoutEndpoint : global::FastEndpoints.EndpointWithoutRequ
     }
 
     /// <inheritdoc />
-    public override Task HandleAsync(CancellationToken ct)
+    public override Task HandleAsync(CancellationToken cancellationToken)
     {
         HttpContext.Response.StatusCode = 204;
         return Task.CompletedTask;

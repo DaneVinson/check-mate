@@ -31,4 +31,8 @@ public sealed class DeleteCheckableHandler : ICommandHandler<DeleteCheckable>
 
         await _messenger.SendAsync(new CheckableDeleted(command.CheckableId, command.Id), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((DeleteCheckable)command, cancellationToken);
 }

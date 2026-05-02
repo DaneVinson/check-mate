@@ -31,4 +31,8 @@ public sealed class DeleteCheckListHandler : ICommandHandler<DeleteCheckList>
 
         await _messenger.SendAsync(new CheckListDeleted(command.CheckListId, command.Id), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((DeleteCheckList)command, cancellationToken);
 }

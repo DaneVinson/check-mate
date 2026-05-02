@@ -23,49 +23,43 @@ internal sealed class QueriesEndpoint : global::FastEndpoints.Endpoint<QueryRequ
     }
 
     /// <inheritdoc />
-    public override async Task HandleAsync(QueryRequest req, CancellationToken ct)
+    public override async Task HandleAsync(QueryRequest request, CancellationToken cancellationToken)
     {
-        var types = ResolveQueryTypes(req.Type);
+        var types = ResolveQueryTypes(request.Type);
         if (types is null)
         {
             HttpContext.Response.StatusCode = 400;
-            await HttpContext.Response.WriteAsJsonAsync(new { message = $"Unknown type: {req.Type}" }, ct);
+            await HttpContext.Response.WriteAsJsonAsync(new { message = $"Unknown type: {request.Type}" }, cancellationToken);
             return;
         }
 
-        var query = req.Payload.Deserialize(types.Value.QueryType, _options)!;
+        var query = request.Payload.Deserialize(types.Value.QueryType, _options)!;
         var handlerType = typeof(IQueryHandler<,>).MakeGenericType(types.Value.QueryType, types.Value.ResultType);
-        var handler = HttpContext.RequestServices.GetRequiredService(handlerType);
-        var task = (Task)handlerType.GetMethod("HandleAsync")!.Invoke(handler, [query, ct])!;
-        await task;
+        var handler = (IQueryHandler)HttpContext.RequestServices.GetRequiredService(handlerType);
+        var result = await handler.HandleAsync(query, cancellationToken);
 
-        var resultObj = task.GetType().GetProperty("Result")!.GetValue(task)!;
-        var resultType = resultObj.GetType();
-
-        if ((bool)resultType.GetProperty("IsError")!.GetValue(resultObj)!)
+        if (result.IsError)
         {
-            var error = resultType.GetProperty("Error")!.GetValue(resultObj)!;
             HttpContext.Response.StatusCode = 400;
-            await HttpContext.Response.WriteAsJsonAsync(new { message = error.GetType().GetProperty("Message")!.GetValue(error) }, ct);
+            await HttpContext.Response.WriteAsJsonAsync(new { message = result.Error.Message }, cancellationToken);
             return;
         }
 
-        var value = resultType.GetProperty("Value")!.GetValue(resultObj);
-        if (value is null)
+        if (result.Value is null)
         {
             HttpContext.Response.StatusCode = 404;
             return;
         }
 
-        await HttpContext.Response.WriteAsJsonAsync(value, ct);
+        await HttpContext.Response.WriteAsJsonAsync(result.Value, cancellationToken);
     }
 
     private static (Type QueryType, Type ResultType)? ResolveQueryTypes(string type) => type switch
     {
         "GetCheckablesByCheckList" => (typeof(GetCheckablesByCheckList), typeof(IReadOnlyList<CheckableDto>)),
-        "GetCheckList"             => (typeof(GetCheckList), typeof(CheckListDto)),
-        "GetCheckListsByUser"      => (typeof(GetCheckListsByUser), typeof(IReadOnlyList<CheckListDto>)),
-        "GetUser"                  => (typeof(GetUser), typeof(UserDto)),
-        _                          => null
+        "GetCheckList" => (typeof(GetCheckList), typeof(CheckListDto)),
+        "GetCheckListsByUser" => (typeof(GetCheckListsByUser), typeof(IReadOnlyList<CheckListDto>)),
+        "GetUser" => (typeof(GetUser), typeof(UserDto)),
+        _ => null
     };
 }

@@ -54,6 +54,9 @@ Project names follow the `CM.*` prefix convention. Projects are organised into s
 - `///` `<param>` docs go on the record declaration line
 - No `using` directives inside type files — use `_GlobalUsings.cs` only
 
+### Formatting
+- Do not use extra spaces to align `=>` operators across switch expression arms
+
 ### Global Usings
 - Every project has a `_GlobalUsings.cs` containing all `global using` directives for the project
 - No `using` directives in individual type files
@@ -70,13 +73,14 @@ Domain/CM.Domain/
     CommandFailed.cs   — record; IEvent raised when a command fails; (Guid? CommandId, string Message)
     FailResult.cs      — sealed class; failure carrier with Message property
     ICommand.cs        — interface; Guid Id { get; }
-    ICommandHandler.cs — interface; Task HandleAsync(TCommand, CancellationToken)
+    ICommandHandler.cs — non-generic interface; Task HandleAsync(object, CancellationToken); generic ICommandHandler<TCommand> : ICommandHandler adds Task HandleAsync(TCommand, CancellationToken)
     IEvent.cs          — interface; Guid? CommandId { get; }
     IMessenger.cs      — interface; Task SendAsync(TMessage, CancellationToken)
     IQuery.cs          — interface; pure marker generic interface IQuery<TResult>, no properties
-    IQueryHandler.cs   — interface; Task<Result<TResult>> HandleAsync(TQuery, CancellationToken)
+    IQueryHandler.cs   — non-generic interface; Task<IResult> HandleAsync(object, CancellationToken); generic IQueryHandler<TQuery, TResult> : IQueryHandler adds Task<Result<TResult>> HandleAsync(TQuery, CancellationToken)
+    IResult.cs         — interface; non-generic accessor for Result<T>; Error, IsError, IsSuccess, object? Value
     IValidatable.cs    — interface; FailResult? Validate()
-    Result.cs          — sealed class; generic discriminated union of T | FailResult
+    Result.cs          — sealed class; implements IResult; generic discriminated union of T | FailResult; explicit IResult.Value returns null on failure
   Checkables/
     Checkable.cs             — sealed entity class
     ICheckableDataService.cs — interface; DeleteAsync, GetByCheckListAsync, GetByIdAsync, UpsertAsync
@@ -179,10 +183,10 @@ Library/CM.FastEndpoints/
     LogoutEndpoint.cs    — internal sealed; POST /auth/logout; requires auth (no AllowAnonymous); returns 204; token invalidation is client-side only
   Commands/
     CommandRequest.cs    — public record CommandRequest(JsonElement Payload, string Type)
-    CommandsEndpoint.cs  — internal sealed; POST /commands; ResolveCommandType() switch → Type; deserializes payload; resolves ICommandHandler<T> via MakeGenericType + GetRequiredService; invokes via reflection; unknown type → 400; on success → 204
+    CommandsEndpoint.cs  — internal sealed; POST /commands; ResolveCommandType() switch → Type; deserializes payload; resolves ICommandHandler<T> via MakeGenericType + GetRequiredService; casts to ICommandHandler and calls HandleAsync directly; unknown type → 400; on success → 204
   Queries/
     QueryRequest.cs      — public record QueryRequest(JsonElement Payload, string Type)
-    QueriesEndpoint.cs   — internal sealed; POST /queries; ResolveQueryTypes() switch → (QueryType, ResultType); deserializes payload; resolves IQueryHandler<T,TResult> via MakeGenericType + GetRequiredService; invokes via reflection; reads Result<T> properties via reflection; on error → 400; null → 404; success → 200 + JSON
+    QueriesEndpoint.cs   — internal sealed; POST /queries; ResolveQueryTypes() switch → (QueryType, ResultType); deserializes payload; resolves IQueryHandler<T,TResult> via MakeGenericType + GetRequiredService; casts to IQueryHandler and calls HandleAsync directly; reads IResult properties; on error → 400; null → 404; success → 200 + JSON
 ```
 
 ### CM.FastEndpoints Notes
@@ -426,7 +430,8 @@ Tests/CM.LiteDB.Tests/
 
 ### Command Handlers
 - Named `XxxHandler`, sealed classes in the same folder as the command
-- Implement `ICommandHandler<TCommand>`
+- Implement `ICommandHandler<TCommand>` (which extends non-generic `ICommandHandler`)
+- Include explicit bridge: `Task ICommandHandler.HandleAsync(object command, CancellationToken ct) => HandleAsync((TCommand)command, ct);`
 - Constructor dependencies (alphabetically ordered): `IXxxDataService`, `IMessenger<IEvent>` — both null-guarded
 - `HandleAsync` pattern:
   1. Call `command.Validate()` if the command implements `IValidatable` — send `CommandFailed` and return if non-null
@@ -439,7 +444,8 @@ Tests/CM.LiteDB.Tests/
 
 ### Query Handlers
 - Named `XxxHandler`, sealed classes in the same folder as the query
-- Implement `IQueryHandler<TQuery, TResult>`
+- Implement `IQueryHandler<TQuery, TResult>` (which extends non-generic `IQueryHandler`)
+- Include explicit bridge: `async Task<IResult> IQueryHandler.HandleAsync(object query, CancellationToken ct) => await HandleAsync((TQuery)query, ct);`
 - Constructor dependency: `IXxxDataService` — null-guarded
 - Return `result.Error` on failure (implicit operator applies)
 - For collection results where `T` is an interface, use `Result<T>.Success(...)` — map entities to DTOs using the entity constructor

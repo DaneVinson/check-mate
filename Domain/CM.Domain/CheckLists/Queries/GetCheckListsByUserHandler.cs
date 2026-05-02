@@ -27,4 +27,8 @@ public sealed class GetCheckListsByUserHandler : IQueryHandler<GetCheckListsByUs
 
         return Result<IReadOnlyList<CheckListDto>>.Success(result.Value.Select(cl => new CheckListDto(cl)).ToList());
     }
+
+    /// <inheritdoc />
+    async Task<IResult> IQueryHandler.HandleAsync(object query, CancellationToken cancellationToken)
+        => await HandleAsync((GetCheckListsByUser)query, cancellationToken);
 }

@@ -23,34 +23,34 @@ internal sealed class CommandsEndpoint : global::FastEndpoints.Endpoint<CommandR
     }
 
     /// <inheritdoc />
-    public override async Task HandleAsync(CommandRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CommandRequest request, CancellationToken cancellationToken)
     {
-        var commandType = ResolveCommandType(req.Type);
+        var commandType = ResolveCommandType(request.Type);
         if (commandType is null)
         {
             HttpContext.Response.StatusCode = 400;
-            await HttpContext.Response.WriteAsJsonAsync(new { message = $"Unknown type: {req.Type}" }, ct);
+            await HttpContext.Response.WriteAsJsonAsync(new { message = $"Unknown type: {request.Type}" }, cancellationToken);
             return;
         }
 
-        var command = req.Payload.Deserialize(commandType, _options)!;
+        var command = request.Payload.Deserialize(commandType, _options)!;
         var handlerType = typeof(ICommandHandler<>).MakeGenericType(commandType);
-        var handler = HttpContext.RequestServices.GetRequiredService(handlerType);
-        await (Task)handlerType.GetMethod("HandleAsync")!.Invoke(handler, [command, ct])!;
+        var handler = (ICommandHandler)HttpContext.RequestServices.GetRequiredService(handlerType);
+        await handler.HandleAsync(command, cancellationToken);
     }
 
     private static Type? ResolveCommandType(string type) => type switch
     {
-        "CheckCheckable"  => typeof(CheckCheckable),
+        "CheckCheckable" => typeof(CheckCheckable),
         "CreateCheckable" => typeof(CreateCheckable),
         "CreateCheckList" => typeof(CreateCheckList),
-        "CreateUser"      => typeof(CreateUser),
+        "CreateUser" => typeof(CreateUser),
         "DeleteCheckable" => typeof(DeleteCheckable),
         "DeleteCheckList" => typeof(DeleteCheckList),
         "UncheckCheckable" => typeof(UncheckCheckable),
         "UpdateCheckable" => typeof(UpdateCheckable),
         "UpdateCheckList" => typeof(UpdateCheckList),
-        "UpdateUser"      => typeof(UpdateUser),
-        _                 => null
+        "UpdateUser" => typeof(UpdateUser),
+        _ => null
     };
 }

@@ -5,7 +5,7 @@ namespace CM.Domain.Cqrs;
 /// <typeparamref name="T"/> or an <see cref="FailResult"/>.
 /// </summary>
 /// <typeparam name="T">The type of the success value.</typeparam>
-public sealed class Result<T>
+public sealed class Result<T> : IResult
 {
     private readonly FailResult? _error;
     private readonly T? _value;
@@ -47,6 +47,9 @@ public sealed class Result<T>
     public T Value => IsSuccess
         ? _value!
         : throw new InvalidOperationException("Result is an error. Access Error instead.");
+
+    /// <inheritdoc />
+    object? IResult.Value => IsSuccess ? _value : null;
 
     /// <summary>
     /// Implicitly converts an <see cref="FailResult"/> to a failed <see cref="Result{T}"/>.

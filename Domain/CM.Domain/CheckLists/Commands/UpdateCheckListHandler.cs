@@ -47,4 +47,8 @@ public sealed class UpdateCheckListHandler : ICommandHandler<UpdateCheckList>
 
         await _messenger.SendAsync(new CheckListUpdated(new CheckListDto(upsertResult.Value), command.Id), cancellationToken);
     }
+
+    /// <inheritdoc />
+    Task ICommandHandler.HandleAsync(object command, CancellationToken cancellationToken)
+        => HandleAsync((UpdateCheckList)command, cancellationToken);
 }
