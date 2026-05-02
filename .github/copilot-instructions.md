@@ -7,7 +7,7 @@ Check Mate is a to-do style application. The solution file is `CheckMate.slnx`.
 | Project | Type | Purpose |
 |---|---|---|
 | `CM.AdminConsole` | Console app, `net10.0` | Interactive admin console using Bogus or LiteDB persistence |
-| `CM.Api` | Web app, `net10.0` | FastEndpoints HTTP API with `POST /commands` and `POST /queries` dispatcher endpoints |
+| `CM.Api` | Web app, `net10.0` | FastEndpoints HTTP API with `POST /commands`, `POST /queries` dispatcher endpoints and JWT auth endpoints |
 | `CM.Domain` | Class library, `net10.0` | All domain entities, CQRS interfaces, commands, events, queries, and result types |
 | `CM.FastEndpoints` | Class library, `net10.0` | FastEndpoints endpoint implementations for CM.Api |
 | `CM.LiteDB` | Class library, `net10.0` | LiteDB persistence implementations of CQRS handlers |
@@ -123,7 +123,7 @@ Domain/CM.Domain/
       GetCheckListsByUserHandler.cs
   Users/
     User.cs             — sealed entity class
-    IUserDataService.cs — interface; ExistsByEmailAsync, GetByIdAsync, UpsertAsync
+    IUserDataService.cs — interface; ExistsByEmailAsync, GetByEmailAsync, GetByIdAsync, UpsertAsync
     Commands/
       CreateUser.cs       — implements IValidatable; validates Email (required + format) then Name (required)
       CreateUserHandler.cs
@@ -145,17 +145,23 @@ Domain/CM.Domain/
 ```
 Applications/CM.Api/
   _GlobalUsings.cs
+  appsettings.json     — Jwt configuration under the "JwtOptions" section
   CM.Api.csproj
-  Program.cs             — top-level statements; registers JsonSerializerOptions (singleton); calls AddDefaultHandlers(), AddBogusDataServices(), AddFastEndpoints(); uses FastEndpoints 8.1.0
+  Extensions.cs        — internal static class; GetConfigObject<T>(this IConfiguration, string? configPath = null) extension method
+  Program.cs           — top-level statements; registers JsonSerializerOptions and JwtOptions singletons; calls AddDefaultHandlers(), AddBogusDataServices(), AddFastEndpoints(); configures JWT Bearer auth and authorization middleware
 ```
 
 ### CM.Api Notes
 - Uses **FastEndpoints 8.1.0** (`Microsoft.NET.Sdk.Web`, `net10.0`)
-- References `CM.Domain`, `CM.Bogus`, and `CM.FastEndpoints`
+- References `CM.Domain`, `CM.Bogus`, `CM.FastEndpoints`; also references `Microsoft.AspNetCore.Authentication.JwtBearer` package
 - Endpoint implementations live in `CM.FastEndpoints`; `CM.Api` is only the host
 - `using FastEndpoints;` is in `Program.cs` only; endpoint base classes are qualified as `global::FastEndpoints.Endpoint<T>` in `CM.FastEndpoints` to avoid namespace collision with `CM.FastEndpoints`
 - `Program.cs` registers `JsonSerializerOptions` as a singleton (`new JsonSerializerOptions(JsonSerializerDefaults.Web)`)
+- `Program.cs` binds `"JwtOptions"` config section to a `JwtOptions` singleton via `builder.Configuration.GetConfigObject<JwtOptions>()`
+- JWT Bearer authentication is configured from the `JwtOptions` singleton; `UseAuthentication()` and `UseAuthorization()` are called before `UseFastEndpoints()`
+- Chained service registrations start each method on its own line: `builder.Services\n    .AddAuthentication(...)\n    .AddJwtBearer(...)`
 - No `IMessenger<IEvent>` registration currently — handlers require one to be added when messaging is needed
+- `Extensions.GetConfigObject<T>` defaults the config section path to `typeof(T).Name`; throws `InvalidOperationException` if the section is missing or cannot be bound
 
 ---
 
@@ -165,6 +171,12 @@ Applications/CM.Api/
 Library/CM.FastEndpoints/
   _GlobalUsings.cs
   CM.FastEndpoints.csproj
+  Auth/
+    JwtOptions.cs        — public sealed class; Audience, ExpiryMinutes, Issuer, SigningKey properties with defaults
+    LoginEndpoint.cs     — internal sealed; POST /auth/token; AllowAnonymous; validates email+name against IUserDataService.GetByEmailAsync; issues OIDC-compliant JWT; returns 401 on failure
+    LoginRequest.cs      — public record LoginRequest(string Email, string Name)
+    LoginResponse.cs     — public record LoginResponse(string AccessToken, int ExpiresIn, string TokenType)
+    LogoutEndpoint.cs    — internal sealed; POST /auth/logout; requires auth (no AllowAnonymous); returns 204; token invalidation is client-side only
   Commands/
     CommandRequest.cs    — public record CommandRequest(JsonElement Payload, string Type)
     CommandsEndpoint.cs  — internal sealed; POST /commands; ResolveCommandType() switch → Type; deserializes payload; resolves ICommandHandler<T> via MakeGenericType + GetRequiredService; invokes via reflection; unknown type → 400; on success → 204
@@ -175,14 +187,16 @@ Library/CM.FastEndpoints/
 
 ### CM.FastEndpoints Notes
 - References `CM.Domain` only (no data backend dependency)
-- `FastEndpoints` package and `FrameworkReference Microsoft.AspNetCore.App` both referenced in the csproj
-- Endpoints use constructor injection: `CommandsEndpoint(JsonSerializerOptions)`, `QueriesEndpoint(JsonSerializerOptions)`
-- Request shape: `{ "type": "CreateUser", "payload": { ... } }` — `type` is the exact command/query class name
+- `FastEndpoints` package, `System.IdentityModel.Tokens.Jwt` package, and `FrameworkReference Microsoft.AspNetCore.App` all referenced in the csproj
+- Endpoints use constructor injection: `CommandsEndpoint(JsonSerializerOptions)`, `QueriesEndpoint(JsonSerializerOptions)`, `LoginEndpoint(JwtOptions, IUserDataService)`
+- Request shape for commands/queries: `{ "type": "CreateUser", "payload": { ... } }` — `type` is the exact command/query class name
 - `JsonSerializerOptions` initialized with `JsonSerializerDefaults.Web` (case-insensitive, camelCase, number-from-string); registered as singleton in CM.Api's `Program.cs`
 - Unknown `type` value returns 400 `{ "message": "Unknown type: {type}" }`
 - `CommandsEndpoint` does **not** detect `CommandFailed` — no `IMessenger<IEvent>` is wired; always returns 204 on dispatch success
 - **Commands** (10 total): CheckCheckable, CreateCheckable, CreateCheckList, CreateUser, DeleteCheckable, DeleteCheckList, UncheckCheckable, UpdateCheckable, UpdateCheckList, UpdateUser
 - **Queries** (4 total): GetCheckablesByCheckList, GetCheckList, GetCheckListsByUser, GetUser
+- **JWT token claims**: `sub` (userId), `email`, `iat`, `jti`, `name`, `userId` (custom convenience claim)
+- `LogoutEndpoint` inherits `EndpointWithoutRequest`; JWT tokens are stateless so invalidation is client-side
 
 ---
 
@@ -435,9 +449,10 @@ Tests/CM.LiteDB.Tests/
 - Define the persistence contract for a single entity type
 - `ICheckableDataService`: `DeleteAsync(Guid)`, `GetByCheckListAsync(Guid)`, `GetByIdAsync(Guid)`, `UpsertAsync(Checkable)`
 - `ICheckListDataService`: `DeleteAsync(Guid)`, `GetByIdAsync(Guid)`, `GetByUserAsync(Guid)`, `UpsertAsync(CheckList)`
-- `IUserDataService`: `ExistsByEmailAsync(string)`, `GetByIdAsync(Guid)`, `UpsertAsync(User)`
+- `IUserDataService`: `ExistsByEmailAsync(string)`, `GetByEmailAsync(string)`, `GetByIdAsync(Guid)`, `UpsertAsync(User)`
 - All methods return `Task<Result<T>>`
-- `ExistsByEmailAsync` is case-insensitive in both implementations
+- `ExistsByEmailAsync` and `GetByEmailAsync` are case-insensitive in both implementations
+- `GetByEmailAsync` returns `Task<Result<User?>>` — `null` value means no user with that email exists
 
 ### Messaging
 - `IMessenger<TMessage>` — single method: `Task SendAsync(TMessage, CancellationToken)`

@@ -13,6 +13,14 @@ internal sealed class UserDataService : IUserDataService
     }
 
     /// <inheritdoc />
+    public Task<Result<User?>> GetByEmailAsync(string email)
+    {
+        using var scope = DataStore.SyncRoot.EnterScope();
+        var user = DataStore.Users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<Result<User?>>(user);
+    }
+
+    /// <inheritdoc />
     public Task<Result<User>> GetByIdAsync(Guid userId)
     {
         using var scope = DataStore.SyncRoot.EnterScope();

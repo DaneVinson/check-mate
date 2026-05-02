@@ -35,6 +35,13 @@ internal sealed class UserDataService : IUserDataService
     }
 
     /// <inheritdoc />
+    public Task<Result<User?>> GetByEmailAsync(string email)
+    {
+        var doc = Collection.FindOne(Query.EQ("email", new BsonValue(email)));
+        return Task.FromResult<Result<User?>>(doc is null ? null : ToUser(doc));
+    }
+
+    /// <inheritdoc />
     public Task<Result<User>> GetByIdAsync(Guid userId)
     {
         var doc = Collection.FindById(new BsonValue(userId));

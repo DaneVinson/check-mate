@@ -13,6 +13,13 @@ public interface IUserDataService
     Task<Result<bool>> ExistsByEmailAsync(string email);
 
     /// <summary>
+    /// Retrieves a <see cref="User"/> by email address.
+    /// </summary>
+    /// <param name="email">The email address of the user to retrieve.</param>
+    /// <returns>A result containing the matching user, or <see langword="null"/> if no user with the given email exists.</returns>
+    Task<Result<User?>> GetByEmailAsync(string email);
+
+    /// <summary>
     /// Retrieves a <see cref="User"/> by its unique identifier.
     /// </summary>
     /// <param name="userId">The identifier of the user to retrieve.</param>
