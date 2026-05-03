@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { postCommand, postQuery } from 'src/api';
 import type { CheckableDto } from 'src/types/CheckableDto';
 
 export const useCheckablesStore = defineStore('checkables', {
@@ -7,19 +8,36 @@ export const useCheckablesStore = defineStore('checkables', {
   }),
 
   actions: {
-    // TODO: call POST /queries { type: 'GetCheckablesByCheckList', payload: { checkListId } }
-    async loadByCheckList(_checkListId: string): Promise<void> {
-      // placeholder
+    async loadByCheckList(checkListId: string): Promise<void> {
+      this.checkables = await postQuery<CheckableDto[]>('GetCheckablesByCheckList', { checkListId });
     },
 
-    // TODO: call POST /commands { type: 'CheckCheckable', payload: { id } }
-    async check(_id: string): Promise<void> {
-      // placeholder
+    async check(id: string): Promise<void> {
+      await postCommand('CheckCheckable', { checkableId: id });
+      const item = this.checkables.find((c) => c.id === id);
+      if (item) item.checked = true;
     },
 
-    // TODO: call POST /commands { type: 'UncheckCheckable', payload: { id } }
-    async uncheck(_id: string): Promise<void> {
-      // placeholder
+    async uncheck(id: string): Promise<void> {
+      await postCommand('UncheckCheckable', { checkableId: id });
+      const item = this.checkables.find((c) => c.id === id);
+      if (item) item.checked = false;
+    },
+
+    async create(checkListId: string, userId: string, description: string): Promise<void> {
+      await postCommand('CreateCheckable', { checkListId, description, userId });
+      await this.loadByCheckList(checkListId);
+    },
+
+    async updateDescription(id: string, description: string): Promise<void> {
+      await postCommand('UpdateCheckable', { checkableId: id, description });
+      const item = this.checkables.find((c) => c.id === id);
+      if (item) item.description = description;
+    },
+
+    async deleteCheckable(id: string): Promise<void> {
+      await postCommand('DeleteCheckable', { checkableId: id });
+      this.checkables = this.checkables.filter((c) => c.id !== id);
     },
   },
 });

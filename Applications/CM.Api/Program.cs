@@ -40,8 +40,9 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+var quasarRoot = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "quasar");
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapHub<CheckMateHub>("/events");
@@ -49,6 +50,21 @@ app.UseFastEndpoints(c =>
 {
     c.Serializer.Options.PropertyNameCaseInsensitive = true;
 });
-app.MapFallbackToFile("index.html");
+app.MapGet("/quasar/{**path}", async (string? path, HttpContext ctx) =>
+{
+    var relativePath = string.IsNullOrEmpty(path) ? "index.html" : path;
+    var fullPath = Path.GetFullPath(Path.Combine(quasarRoot, relativePath));
+
+    if (!fullPath.StartsWith(quasarRoot, StringComparison.OrdinalIgnoreCase) || !File.Exists(fullPath))
+    {
+        ctx.Response.ContentType = "text/html";
+        await ctx.Response.SendFileAsync(Path.Combine(quasarRoot, "index.html"));
+        return;
+    }
+
+    contentTypeProvider.TryGetContentType(fullPath, out var ct);
+    ctx.Response.ContentType = ct ?? "application/octet-stream";
+    await ctx.Response.SendFileAsync(fullPath);
+});
 
 app.Run();

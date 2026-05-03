@@ -36,6 +36,7 @@ export default defineConfig((/* ctx */) => {
         vueShim: true
       },
 
+      publicPath: '/quasar/',
       vueRouterMode: 'history',
     },
 

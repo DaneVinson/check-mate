@@ -10,7 +10,7 @@
     Skipped on subsequent builds once wwwroot/index.html exists.
   -->
   <Target Name="BuildQuasarIfMissing" BeforeTargets="Build"
-          Condition="!Exists('$(MSBuildThisFileDirectory)wwwroot\index.html')">
+          Condition="!Exists('$(MSBuildThisFileDirectory)wwwroot\quasar\index.html')">
     <Message Text="Building CM.Quasar (first run)..." Importance="high" />
     <Exec Command="npm install" WorkingDirectory="$(MSBuildThisFileDirectory)$(SpaRoot)" />
     <Exec Command="npx quasar build" WorkingDirectory="$(MSBuildThisFileDirectory)$(SpaRoot)" />
@@ -18,7 +18,7 @@
       <SpaDistFiles Include="$(MSBuildThisFileDirectory)$(SpaRoot)dist\spa\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(SpaDistFiles)"
-          DestinationFiles="@(SpaDistFiles->'$(MSBuildThisFileDirectory)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" />
+          DestinationFiles="@(SpaDistFiles->'$(MSBuildThisFileDirectory)wwwroot\quasar\%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
   <!--
@@ -33,7 +33,7 @@
     </ItemGroup>
     <ItemGroup>
       <ResolvedFileToPublish Include="@(SpaPublishFiles)">
-        <RelativePath>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <RelativePath>wwwroot\quasar\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
       </ResolvedFileToPublish>
     </ItemGroup>
   </Target>

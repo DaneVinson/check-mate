@@ -1,36 +1,13 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="hHh lpR fFf">
     <q-header elevated>
       <q-toolbar>
-        <q-btn
-          flat
-          dense
-          round
-          icon="menu"
-          aria-label="Menu"
-          @click="toggleLeftDrawer"
-        />
-        <q-toolbar-title>
-          Check Mate
-        </q-toolbar-title>
+        <q-toolbar-title>Check Mate</q-toolbar-title>
+        <q-btn flat round icon="logout" @click="logout">
+          <q-tooltip>Logout</q-tooltip>
+        </q-btn>
       </q-toolbar>
     </q-header>
-
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-    >
-      <q-list>
-        <q-item-label header>Navigation</q-item-label>
-        <q-item clickable v-ripple to="/checklists">
-          <q-item-section avatar>
-            <q-icon name="checklist" />
-          </q-item-section>
-          <q-item-section>Check Lists</q-item-section>
-        </q-item>
-      </q-list>
-    </q-drawer>
 
     <q-page-container>
       <router-view />
@@ -39,11 +16,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from 'src/stores/auth';
 
-const leftDrawerOpen = ref(false);
+const auth = useAuthStore();
+const router = useRouter();
 
-function toggleLeftDrawer() {
-  leftDrawerOpen.value = !leftDrawerOpen.value;
+function logout() {
+  auth.logout();
+  void router.push('/checklists');
 }
 </script>

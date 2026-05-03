@@ -6,6 +6,7 @@ global using CM.SignalR;
 global using FastEndpoints;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.AspNetCore.Authentication.JwtBearer;
+global using Microsoft.AspNetCore.StaticFiles;
 global using Microsoft.IdentityModel.Tokens;
 global using System.Text;
 global using System.Text.Json;
